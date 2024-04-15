@@ -1,36 +1,48 @@
-from sys import argv
-import sys, re
+#! /usr/bin/env python3
+from sys import argv, exit
 
-progName = "()"
-if len(argv):
-    progName = argv[0]
-    del argv[0]
+progName = argv[0]
+del argv[0]
 
-switchesVarDefaults = ()
+switchesVarDefaults = (
+    (('-s', '--server'), 'server', "127.0.0.1:50001"),  # default 127.0.0.1:50001  -s --server give a server
+    (('-?', '--usage'), "usage", False),  # boolean (set if present)    -? and --usage prints out how to use this program
+)
 
 def parseParams(_switchesVarDefaults):
-    global switchesVarDefaults
     paramMap = {}
-    switchesVarDefaults = _switchesVarDefaults
-    swVarDefaultMap = {}       # map from cmd switch to param var name
-    for switches, param, default in switchesVarDefaults:
+    swVarDefaultMap = {}  # map from cmd switch to param var name
+    for switches, param, default in _switchesVarDefaults:
         for sw in switches:
             swVarDefaultMap[sw] = (param, default)
-        paramMap[param] = default # set default values
+        paramMap[param] = default  # set default values
     try:
-        while len(argv):
-            sw = argv[0]; del argv[0]
-            paramVar, defaultVal = swVarDefaultMap[sw]
-            if (defaultVal):
-                val = argv[0]; del argv[0]
-                paramMap[paramVar] = val
+        while len(argv) >= 2:  # Ensure at least two arguments are left
+            arg = argv[0]
+            if arg.startswith('-'):
+                paramVar, defaultVal = swVarDefaultMap.get(arg, (None, None))
+                if paramVar is not None:
+                    if defaultVal:
+                        if len(argv) > 1:
+                            val = argv[1]
+                            del argv[0:2]
+                            paramMap[paramVar] = val
+                        else:
+                            print("Missing value for switch:", arg)
+                            exit(1)
+                    else:
+                        del argv[0]
+                        paramMap[paramVar] = True
+                else:
+                    print("Unknown switch:", arg)
+                    exit(1)
             else:
-                paramMap[paramVar] = True
+                break  # Stop parsing if an argument is not a switch
     except Exception as e:
         print("Problem parsing parameters (exception=%s)" % e)
-        usage()
+        exit(1)
     return paramMap
-        
+
 def usage():
     print("%s usage:" % progName)
     for switches, param, default in switchesVarDefaults:
@@ -39,5 +51,13 @@ def usage():
                 print(" [%s %s]   (default = %s)" % (sw, param, default))
             else:
                 print(" [%s]   (%s if present)" % (sw, param))
-    sys.exit(1)
+    exit(1)
 
+paramMap = parseParams(switchesVarDefaults)
+
+server, usage = paramMap["server"], paramMap["usage"]  # maps param name to value
+
+if usage:
+    usage()  # Prints out message
+
+print("Server:", server)
